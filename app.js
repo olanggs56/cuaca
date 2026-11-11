@@ -201,7 +201,7 @@
 
   // ===== Menu tab =====
   function applyView() {
-    ["cuaca", "sholat", "kiblat", "udara", "gempa"].forEach(function (k) { var v = $("v-" + k); if (v) v.hidden = k !== tab; });
+    ["cuaca", "sholat", "kiblat", "dzikir", "udara", "gempa"].forEach(function (k) { var v = $("v-" + k); if (v) v.hidden = k !== tab; });
     if (window.Qibla) Qibla.visible(tab === "kiblat");
     document.documentElement.setAttribute("data-tab", tab);
     ["jam", "hari", "detail"].forEach(function (k) { var p = $("sub-" + k); if (p) p.hidden = k !== sub; });
