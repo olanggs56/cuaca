@@ -465,6 +465,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 .qr-err { margin-top: 8px; min-height: 1.2em; }
 
 /* Zikir */
+#zkSeg { margin-bottom: 12px; }
 .zk-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
 .zk-chips::-webkit-scrollbar { display: none; }
 .zk-chips button { flex: none; height: 38px; padding: 0 14px; border: 0; border-radius: 19px; background: rgba(255,255,255,.14); font-weight: 500; }
@@ -473,15 +474,58 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 .zk-ar { margin: 0; font: 400 2rem/1.9 "Amiri", "Noto Naskh Arabic", "Traditional Arabic", serif; }
 .zk-lat { margin: 2px 0; font-size: 1.15rem; font-weight: 600; }
 .zk-seq { min-height: 1.2em; margin: 4px 0 0; }
-.zk-tap { position: relative; display: block; width: min(64vw, 240px); aspect-ratio: 1; margin: 8px auto 0; padding: 0; border: 0; border-radius: 50%; background: rgba(255,255,255,.1); color: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: transform .08s; }
-.zk-tap:active { transform: scale(.96); background: rgba(255,255,255,.18); }
-.zk-tap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.zk-track { fill: none; stroke: rgba(255,255,255,.2); stroke-width: 6; }
-.zk-ring { fill: none; stroke: #ffd45a; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset .25s; }
-.done .zk-ring { stroke: #4ade80; }
-.zk-c { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
-.zk-c b { font-size: clamp(3rem, 16vw, 4.5rem); font-weight: 500; line-height: 1; }
+.zk-tap { position: relative; display: block; width: min(78vw, 300px); aspect-ratio: 1; margin: 8px auto 0; padding: 0; border: 0; border-radius: 50%; background: radial-gradient(circle, rgba(0,0,0,.18), rgba(255,255,255,.06)); color: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; }
+.zk-tap.pop { animation: zkpop .16s ease-out; }
+@keyframes zkpop { 0% { transform: scale(.965); } 100% { transform: scale(1); } }
+.zk-tap svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+#zkBeads { transition: transform .18s cubic-bezier(.3,1.4,.5,1); transform-box: fill-box; transform-origin: center; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+.zk-string { fill: none; stroke: rgba(255,255,255,.35); stroke-width: 1.5; }
+.zk-mark { fill: #ffd45a; }
+.zk-track { fill: none; stroke: rgba(255,255,255,.18); stroke-width: 5; }
+.zk-ring { fill: none; stroke: #ffd45a; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset .25s; }
+.done .zk-ring, .done .zk-mark { stroke: #4ade80; fill: #4ade80; }
+.done .zk-ring { fill: none; }
+.zk-c { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+.zk-c b { font-size: clamp(3rem, 16vw, 4.5rem); font-weight: 500; line-height: 1; text-shadow: 0 2px 10px rgba(0,0,0,.4); }
 .zk-c small { color: var(--soft); font-size: .95rem; }
-.zk-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; }
-.zk-row > span { order: -1; flex-basis: 100%; text-align: center; }
-.zk-sec { white-space: nowrap; font-size: .85rem; height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: rgba(255,255,255,.14); font-weight: 500; }
+.zk-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 18px; }
+.zk-row > span { flex-basis: 100%; text-align: center; }
+.zk-sec { white-space: nowrap; font-size: .85rem; height: 40px; padding: 0 14px; border: 0; border-radius: 20px; background: rgba(255,255,255,.14); font-weight: 500; }
+.zk-sec[aria-pressed="false"] { opacity: .65; }
+/* daftar zikir & doa */
+.zi-intro { margin: 4px 2px 12px; }
+.zi-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.zi { border-radius: 16px; background: rgba(255,255,255,.1); overflow: hidden; }
+.zi-h { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; }
+.zi-h b { display: block; font-weight: 600; }
+.zi-h small { display: block; color: var(--soft); font-size: .8rem; margin-top: 2px; }
+.zi-h i { flex: none; width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .2s; opacity: .7; }
+.zi-h[aria-expanded="true"] i { transform: rotate(-135deg); }
+.zi-b { padding: 2px 14px 14px; }
+.zi-ar { margin: 8px 0 0; font: 400 1.7rem/2.1 "Amiri", "Noto Naskh Arabic", "Traditional Arabic", serif; text-align: right; text-wrap: pretty; }
+.zi-n { font-size: 1rem; opacity: .7; }
+.zi-lat { margin: 6px 0 0; font-style: italic; color: var(--soft); line-height: 1.5; }
+.zi-id { margin: 6px 0 0; line-height: 1.55; text-wrap: pretty; }
+.zi-v + .zi-v { margin-top: 10px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.12); }
+.zi-src { font-size: .78rem; margin: 10px 0 0; }
+.zi-act { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.zi-play { display: inline-flex; align-items: center; gap: 8px; }
+.zi-play svg { width: 18px; height: 18px; fill: currentColor; }
+.zi-who { font-size: .78rem; }
+
+/* Peta gempa */
+.seg.two { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 12px; }
+.seg.two.sm { margin: 4px 0 10px; }
+.seg.two.sm button { height: 34px; }
+.eq-map { position: relative; z-index: 0; isolation: isolate; height: min(88vw, 380px); border-radius: 18px; overflow: hidden; background: rgba(0,0,0,.2); }
+#eqMapHold:empty { display: none; }
+.eq-map .leaflet-control-attribution { font-size: 10px; }
+.eq-me { background: none; border: 0; }
+.eq-me i { display: block; width: 18px; height: 18px; border-radius: 50%; background: #2f7bff; border: 3px solid #fff; box-shadow: 0 0 0 0 rgba(47,123,255,.6); animation: eqme 2s ease-out infinite; }
+@keyframes eqme { to { box-shadow: 0 0 0 16px rgba(47,123,255,0); } }
+.eq-dist { background: none; border: 0; width: auto !important; height: auto !important; }
+.eq-dist span { display: inline-block; transform: translate(-50%, -50%); padding: 2px 8px; border-radius: 10px; background: rgba(20,30,50,.85); color: #fff; font: 600 11px var(--font); white-space: nowrap; }
+.quakes.areas { margin-bottom: 4px; }
+.quakes.areas li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--glass-line); cursor: pointer; }
+.quakes.areas li:first-child { border-top: 0; }
+.quakes.areas li:active { background: rgba(255,255,255,.12); border-radius: 12px; }

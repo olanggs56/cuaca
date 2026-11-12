@@ -10,7 +10,8 @@
   var place = loadPlace();
   if (window.Qibla) Qibla.setPlace(place);
   var data = null, fetchedAt = 0, timer = null, clockTimer = null, loadSeq = 0, animateNext = true;
-  var aq = null, quakes = null, pr = null, extraSeq = 0, eqSel = 0, eqAll = false, hStart = 0, hN = 0, aqRange = null;
+  var aq = null, quakes = null, pr = null, extraSeq = 0, eqSel = 0, eqAll = false, hStart = 0, hN = 0, aqRange = null,
+      worldSeq = 0, quakesW = null, eqWorld = false, eqView = "map", eqPlace = null, eqMap = null, eqMapEl = null, eqLayer = null, eqSelLayer = null, eqNeedFit = false, leafState = 0, leafCbs = [];
   var tab = "cuaca", sub = "jam";   // menu aktif: cuaca selalu jadi tampilan awal
 
   // Kode cuaca WMO -> [teks, jenis ikon]
@@ -203,12 +204,13 @@
   function applyView() {
     ["cuaca", "sholat", "kiblat", "dzikir", "udara", "gempa"].forEach(function (k) { var v = $("v-" + k); if (v) v.hidden = k !== tab; });
     if (window.Qibla) Qibla.visible(tab === "kiblat");
+    if (tab === "gempa") eqMapShow();
     document.documentElement.setAttribute("data-tab", tab);
     ["jam", "hari", "detail"].forEach(function (k) { var p = $("sub-" + k); if (p) p.hidden = k !== sub; });
     Array.prototype.forEach.call(document.querySelectorAll("#nav button"), function (b) {
       if (b.getAttribute("data-tab") === tab) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
-    Array.prototype.forEach.call(document.querySelectorAll(".seg button"), function (b) {
+    Array.prototype.forEach.call(document.querySelectorAll(".seg button[data-sub]"), function (b) {
       b.setAttribute("aria-pressed", b.getAttribute("data-sub") === sub ? "true" : "false");
     });
   }
@@ -226,7 +228,31 @@
     applyView();
   });
 
-  app.addEventListener("click", function (e) { if (e.target.closest("#eqMore")) { eqAll = true; fillQuakes(); } });
+  app.addEventListener("click", function (e) {
+    if (e.target.closest("#eqMore")) { eqAll = true; fillQuakes(); return; }
+    var sc = e.target.closest("[data-eqscope]");
+    if (sc) {
+      var w = sc.getAttribute("data-eqscope") === "world";
+      if (w === eqWorld) return;
+      eqWorld = w; eqSel = 0; eqAll = false; eqNeedFit = true;
+      if (w && !quakesW) loadWorldQuakes();
+      fillQuakes(); return;
+    }
+    var vw = e.target.closest("[data-eqview]");
+    if (vw) { eqView = vw.getAttribute("data-eqview"); var m = $("eqMapHold"), rd = $("eqRadar"); if (m) m.hidden = eqView !== "map"; if (rd) rd.hidden = eqView !== "radar";
+      Array.prototype.forEach.call(document.querySelectorAll("[data-eqview]"), function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-eqview") === eqView ? "true" : "false"); });
+      if (eqView === "map") eqMapShow(); return; }
+    var ar = e.target.closest("[data-area]");
+    if (ar) { eqSel = Number(ar.getAttribute("data-area")); markSel(); var ll = quakeLatLng(eqSel); if (eqMap && ll && eqView === "map") { eqMap.setView(ll, Math.max(eqMap.getZoom(), 5)); var h = $("eqMapHold"); if (h) h.scrollIntoView({ behavior: "smooth", block: "center" }); } }
+  });
+  function loadWorldQuakes() {
+    var my = ++worldSeq;
+    getJSON("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson").then(function (d) {
+      if (my !== worldSeq || !eqPlace) return;
+      var f = ((d && d.features) || []).slice().sort(function (x, y) { return ((y.properties && y.properties.mag) || 0) - ((x.properties && x.properties.mag) || 0); });
+      quakesW = { ok: true, d: { features: f }, p: eqPlace }; if (eqWorld) fillQuakes();
+    }).catch(function () { if (my !== worldSeq) return; quakesW = { ok: false }; if (eqWorld) fillQuakes(); });
+  }
 
   // ===== Waktu sholat (Aladhan) =====
   var PRAYERS = [["Fajr", "Subuh"], ["Sunrise", "Terbit"], ["Dhuhr", "Dzuhur"], ["Asr", "Ashar"], ["Maghrib", "Maghrib"], ["Isha", "Isya"]];
@@ -467,6 +493,7 @@
     var aUrl = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=" + encodeURIComponent(p.lat) +
       "&longitude=" + encodeURIComponent(p.lon) + "&current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide&hourly=us_aqi&forecast_days=2&timezone=auto";
     var since = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 19);
+    eqPlace = p;
     var qUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&latitude=" + encodeURIComponent(p.lat) +
       "&longitude=" + encodeURIComponent(p.lon) + "&maxradiuskm=1000&minmagnitude=2.5&orderby=time&limit=20&starttime=" + since;
     var ct = data && data.current && data.current.time ? data.current.time.slice(0, 10).split("-") : null;
@@ -586,41 +613,126 @@
   function eqMeta(q) {
     return [q.time ? ago(q.time) : "", q.km != null ? r(q.km) + " km dari sini" : "", q.depth != null ? "kedalaman " + r(q.depth) + " km" : ""].filter(Boolean).join(" · ");
   }
+  function eqQ() { return eqWorld ? quakesW : quakes; }
   function markSel() {
-    var box = $("eqBody"); if (!box || !quakes || !quakes.infos) return;
+    var Q = eqQ(), box = $("eqBody"); if (!box || !Q || !Q.infos) return;
     Array.prototype.forEach.call(box.querySelectorAll("[data-i]"), function (n) {
       n.classList.toggle("sel", Number(n.getAttribute("data-i")) === eqSel);
     });
-    var q = quakes.infos[eqSel], el = $("eqSel");
+    var q = Q.infos[eqSel], el = $("eqSel");
     if (q && el) {
       el.setAttribute("data-sheet", "eq:" + eqSel);
       el.innerHTML = '<span class="mag sm num" style="background:' + magColor(q.mag) + '">' + magTxt(q.mag) + '</span>' +
         '<div><div class="eqp">' + esc(q.place) + '</div><div class="eqs muted">' + esc(eqMeta(q)) + '</div></div>';
     }
+    mapSelect();
+  }
+
+  // ----- Peta (Leaflet + OpenStreetMap, dimuat saat dibutuhkan) -----
+  var LEAF = "https://unpkg.com/leaflet@1.9.4/dist/";
+  function loadLeaflet(cb) {
+    if (leafState === 2) return cb();
+    if (leafState === 3) return cb();
+    leafCbs.push(cb);
+    if (leafState === 1) return;
+    leafState = 1;
+    var l = document.createElement("link"); l.rel = "stylesheet"; l.href = LEAF + "leaflet.css"; document.head.appendChild(l);
+    var s = document.createElement("script"); s.src = LEAF + "leaflet.js";
+    function done(ok) { leafState = ok && window.L ? 2 : 3; var q = leafCbs; leafCbs = []; q.forEach(function (f) { f(); }); }
+    s.onload = function () { done(true); }; s.onerror = function () { done(false); };
+    document.head.appendChild(s);
+  }
+  function quakeLatLng(i) {
+    var Q = eqQ(), f = Q && Q.d && Q.d.features[i], g = f && f.geometry && f.geometry.coordinates;
+    return g && g.length >= 2 ? [g[1], g[0]] : null;
+  }
+  function mapSelect() {
+    if (!eqMap || !eqSelLayer) return;
+    eqSelLayer.clearLayers();
+    var Q = eqQ(), ll = quakeLatLng(eqSel), me = Q && Q.p; if (!ll || !me) return;
+    var q = Q.infos[eqSel];
+    L.polyline([[me.lat, me.lon], ll], { color: "#fff", weight: 2, dashArray: "6 6", opacity: .9 }).addTo(eqSelLayer);
+    L.circleMarker(ll, { radius: Math.min(15, 3.5 + Math.max(0, (q.mag || 2.5) - 2.5) * 2.2) + 6, color: "#fff", weight: 3, fill: false }).addTo(eqSelLayer);
+    var mid = [(me.lat + ll[0]) / 2, (me.lon + ll[1]) / 2];
+    if (q.km != null) L.marker(mid, { interactive: false, icon: L.divIcon({ className: "eq-dist", html: "<span>" + r(q.km) + " km</span>" }) }).addTo(eqSelLayer);
+  }
+  function mapFit() {
+    var Q = eqQ(); if (!eqMap || !Q || !Q.p) return;
+    eqMap.invalidateSize();
+    if (eqWorld) { eqMap.setView([15, Q.p.lon], 2); return; }
+    var pts = [[Q.p.lat, Q.p.lon]]; (Q.infos || []).forEach(function (q, i) { var ll = quakeLatLng(i); if (ll) pts.push(ll); });
+    if (pts.length < 2) eqMap.setView(pts[0], 7); else eqMap.fitBounds(pts, { padding: [28, 28], maxZoom: 9 });
+  }
+  function mapRender() {
+    var hold = $("eqMapHold"), Q = eqQ(); if (!hold || !Q || !Q.ok) return;
+    if (!eqMapEl) { eqMapEl = document.createElement("div"); eqMapEl.className = "eq-map"; }
+    if (eqMapEl.parentNode !== hold) hold.appendChild(eqMapEl);
+    if (leafState === 3) { hold.innerHTML = '<p class="muted">Peta tidak bisa dimuat (butuh internet). Radar dan daftar tetap bisa dipakai.</p>'; hold.hidden = false;
+      if (!eqWorld && eqView === "map") { eqView = "radar"; var rd = $("eqRadar"); if (rd) rd.hidden = false; Array.prototype.forEach.call(document.querySelectorAll("[data-eqview]"), function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-eqview") === "radar" ? "true" : "false"); }); }
+      return; }
+    if (leafState !== 2) { loadLeaflet(mapRender); return; }
+    if (!eqMap) {
+      eqMap = L.map(eqMapEl, { worldCopyJump: true, minZoom: 2, zoomSnap: .5 });
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 12, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(eqMap);
+      eqLayer = L.layerGroup().addTo(eqMap); eqSelLayer = L.layerGroup().addTo(eqMap);
+    }
+    eqLayer.clearLayers();
+    var me = Q.p;
+    if (!eqWorld) {
+      [500, 1000].forEach(function (km) { L.circle([me.lat, me.lon], { radius: km * 1000, color: "#fff", weight: 1, opacity: .45, dashArray: "4 6", fill: false, interactive: false }).addTo(eqLayer); });
+    }
+    var order = Q.infos.map(function (q, k) { return k; }).sort(function (x, y) { return (Q.infos[x].mag || 0) - (Q.infos[y].mag || 0); });
+    order.forEach(function (i) {
+      var q = Q.infos[i], ll = quakeLatLng(i); if (!ll) return;
+      var m = L.circleMarker(ll, { radius: Math.min(15, 3.5 + Math.max(0, (q.mag || 2.5) - 2.5) * 2.2), color: "#fff", weight: 1, fillColor: magColor(q.mag), fillOpacity: .85 }).addTo(eqLayer);
+      m.bindTooltip("M" + magTxt(q.mag) + " · " + q.place, { direction: "top" });
+      m.on("click", function () { eqSel = i; markSel(); });
+    });
+    L.marker([me.lat, me.lon], { interactive: false, keyboard: false, icon: L.divIcon({ className: "eq-me", html: "<i></i>", iconSize: [18, 18] }) }).addTo(eqLayer);
+    if (eqMapEl.offsetWidth > 0) mapFit(); else eqNeedFit = true;
+    mapSelect();
+  }
+  function eqMapShow() {                      // dipanggil saat tab Gempa dibuka
+    if (!eqMap) return;
+    setTimeout(function () { if (eqMap) { eqMap.invalidateSize(); if (eqNeedFit) { eqNeedFit = false; mapFit(); } } }, 60);
+  }
+
+  function areaOf(f) {
+    var s = f && f.properties && f.properties.place, m = s && /^\d+\s*km\s+[NSEW]{1,3}\s+of\s+(.+)$/.exec(s);
+    return m ? m[1] : (s || "Lokasi tidak diketahui");
   }
 
   function fillQuakes() {
     var box = $("eqBody"); if (!box) return;
-    if (!quakes) { box.removeAttribute("data-ready"); box.innerHTML = '<p class="muted">Memuat data gempa…</p>'; return; }
-    if (!quakes.ok) { box.removeAttribute("data-ready"); box.innerHTML = '<p class="muted">Data gempa tidak bisa diambil. Coba perbarui beberapa saat lagi.</p>'; return; }
-    var feats = (quakes.d && quakes.d.features) || [];
-    var src = '<p class="muted src">Sumber: USGS. Gempa kecil di luar Amerika Serikat sering tidak tercatat. Untuk Indonesia, rujukan resminya BMKG (bmkg.go.id).</p>';
+    var Q = eqQ();
+    var scope = '<div class="seg two" role="group" aria-label="Cakupan gempa"><button type="button" data-eqscope="near" aria-pressed="' + (!eqWorld) + '">Sekitarmu</button><button type="button" data-eqscope="world" aria-pressed="' + eqWorld + '">Seluruh dunia</button></div>';
+    if (!Q) { box.removeAttribute("data-ready"); box.innerHTML = scope + '<p class="muted">Memuat data gempa…</p>'; return; }
+    if (!Q.ok) { box.removeAttribute("data-ready"); box.innerHTML = scope + '<p class="muted">Data gempa tidak bisa diambil. Coba perbarui beberapa saat lagi.</p>'; return; }
+    var feats = (Q.d && Q.d.features) || [];
+    var src = '<p class="muted src">Sumber: USGS. ' + (eqWorld ? "Hanya gempa M4,5 ke atas dalam 7 hari terakhir. " : "Gempa kecil di luar Amerika Serikat sering tidak tercatat. ") + 'Untuk Indonesia, rujukan resminya BMKG (bmkg.go.id).</p>';
     if (!feats.length) {
-      quakes.infos = [];
-      box.innerHTML = '<p class="muted">Tidak ada gempa M2.5 ke atas dalam radius 1.000 km selama 7 hari terakhir.</p>' + src;
+      Q.infos = [];
+      box.innerHTML = scope + '<p class="muted">Tidak ada gempa M2.5 ke atas dalam radius 1.000 km selama 7 hari terakhir.</p>' + src;
       return;
     }
-    var ic = box.getAttribute("data-ready") === "1" ? "" : " in", i;
-    var infos = feats.map(function (f) { return quakeInfo(f, quakes.p); });
-    quakes.infos = infos;
+    var ic = box.getAttribute("data-ready") === "1" && box.getAttribute("data-w") === String(eqWorld) ? "" : " in", i;
+    var infos = feats.map(function (f) { return quakeInfo(f, Q.p); });
+    Q.infos = infos;
     if (eqSel >= infos.length) eqSel = 0;
 
-    var maxM = -1, near = Infinity, n24 = 0;
-    infos.forEach(function (q) {
+    var maxM = -1, near = Infinity, n24 = 0, areas = {};
+    infos.forEach(function (q, k) {
       if (q.mag != null && q.mag > maxM) maxM = q.mag;
       if (q.km != null && q.km < near) near = q.km;
       if (q.time && Date.now() - q.time < 864e5) n24++;
+      var an = areaOf(feats[k]), a = areas[an] || (areas[an] = { n: 0, mag: -1, km: Infinity, i: k });
+      a.n++; if (q.mag != null && q.mag > a.mag) { a.mag = q.mag; a.i = k; } if (q.km != null && q.km < a.km) a.km = q.km;
     });
+    var areaList = Object.keys(areas).map(function (k) { return [k, areas[k]]; }).sort(function (x, y) { return y[1].n - x[1].n || y[1].mag - x[1].mag; });
+    var areaRows = areaList.slice(0, 8).map(function (x) {
+      return '<li data-area="' + x[1].i + '" role="button" tabindex="0"><span class="mag sm num" style="background:' + magColor(x[1].mag) + '">' + magTxt(x[1].mag) + '</span><div><div class="eqp">' + esc(x[0]) + '</div><div class="eqs muted">' +
+        x[1].n + ' gempa' + (x[1].km !== Infinity ? " · terdekat " + r(x[1].km) + " km dari sini" : "") + '</div></div></li>';
+    }).join("");
 
     // Radar: kamu di tengah, jarak dan arah tiap gempa digambar sesuai kenyataan (skala 1.000 km).
     var R = 128, s = '<svg class="radar" viewBox="0 0 300 300" role="img" aria-label="Peta radar gempa di sekitar lokasimu">' +
@@ -650,16 +762,21 @@
       rows += '<li class="eq' + (i === eqSel ? " sel" : "") + '" data-i="' + i + '" data-sheet="eq:' + i + '" role="button" tabindex="0"><span class="mag num" style="background:' + magColor(infos[i].mag) + '">' + magTxt(infos[i].mag) + '</span>' +
         '<div><div class="eqp">' + esc(infos[i].place) + '</div><div class="eqs muted">' + esc(eqMeta(infos[i])) + '</div></div></li>';
     }
-    box.innerHTML =
+    var viewSeg = eqWorld ? "" : '<div class="seg two sm" role="group" aria-label="Tampilan"><button type="button" data-eqview="map" aria-pressed="' + (eqView === "map") + '">Peta</button><button type="button" data-eqview="radar" aria-pressed="' + (eqView === "radar") + '">Radar</button></div>';
+    box.innerHTML = scope +
       '<div class="chips three">' + chip("Terkuat", "M" + magTxt(maxM)) + chip("24 jam terakhir", n24 + " gempa") + chip("Terdekat", near === Infinity ? "-" : r(near) + " km") + '</div>' +
-      s +
+      viewSeg +
+      '<div id="eqMapHold"' + (!eqWorld && eqView === "radar" ? " hidden" : "") + '></div>' +
+      '<div id="eqRadar"' + (eqWorld || eqView === "map" ? " hidden" : "") + '>' + s + '</div>' +
       '<div class="eq-sel" id="eqSel" role="button" tabindex="0" aria-live="polite"></div>' +
       '<div class="leg" aria-hidden="true"><span><i style="background:#ffd45a"></i>M2,5–3,9</span><span><i style="background:#ffa94d"></i>M4–4,9</span><span><i style="background:#ff7a59"></i>M5–5,9</span><span><i style="background:#ff4d6d"></i>M6+</span></div>' +
-      '<p class="muted eqsum">Radar menampilkan ' + infos.length + ' gempa M2.5+ dalam radius 1.000 km, 7 hari terakhir. Titik berdenyut terjadi dalam 24 jam terakhir. Ketuk titik atau baris untuk detail.</p>' +
-      '<ol class="quakes">' + rows + '</ol>' +
+      '<p class="muted eqsum">' + (eqWorld ? "Peta menampilkan " + infos.length + " gempa M4,5+ di seluruh dunia dalam 7 hari terakhir." : "Menampilkan " + infos.length + " gempa M2,5+ dalam radius 1.000 km, 7 hari terakhir. Lingkaran putus-putus pada peta menandai 500 dan 1.000 km dari lokasimu.") + ' Titik putih adalah lokasimu. Ketuk titik untuk memilih gempa, lalu ketuk kotak di bawah peta untuk detail.</p>' +
+      '<h3 class="sub-h">Gempa terjadi di mana saja</h3><ul class="quakes areas">' + areaRows + '</ul>' +
+      '<h3 class="sub-h">' + (eqWorld ? "Gempa terkuat" : "Gempa terbaru") + '</h3><ol class="quakes">' + rows + '</ol>' +
       (infos.length > shown ? '<button class="link moreb" type="button" id="eqMore">Lihat semua (' + infos.length + ')</button>' : "") + src;
-    box.setAttribute("data-ready", "1");
+    box.setAttribute("data-ready", "1"); box.setAttribute("data-w", String(eqWorld));
     markSel();
+    mapRender();
   }
 
   function countUp(el, to) {
@@ -985,9 +1102,9 @@
 
   // ----- Gempa -----
   function eqSheet(i) {
-    var infos = quakes && quakes.infos;
+    var Q = eqQ(), infos = Q && Q.infos;
     if (!infos || !infos[i]) return null;
-    var q = infos[i], f = quakes.d.features[i] || {}, pp = f.properties || {}, g = (f.geometry && f.geometry.coordinates) || [];
+    var q = infos[i], f = Q.d.features[i] || {}, pp = f.properties || {}, g = (f.geometry && f.geometry.coordinates) || [];
     var url = typeof pp.url === "string" && /^https:\/\/earthquake\.usgs\.gov\//.test(pp.url) ? pp.url : null;
     var dc = depthClass(q.depth);
     var links = (url ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">Halaman USGS</a>' : "") +
@@ -1335,7 +1452,7 @@
     place = p;
     savePlace(p);
     if (window.Qibla) Qibla.setPlace(p);
-    data = null; aq = null; quakes = null; pr = null; eqSel = 0; eqAll = false;
+    data = null; aq = null; quakes = null; quakesW = null; worldSeq++; eqWorld = false; pr = null; eqSel = 0; eqAll = false;
     animateNext = true;
     closeSearch();
     q.value = "";

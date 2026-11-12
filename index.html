@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <div id="bg" aria-hidden="true"></div>
@@ -84,20 +84,48 @@
   <!-- Tab Zikir: digerakkan oleh dzikir.js -->
   <div class="view" id="v-dzikir" hidden>
     <section class="glass" id="zkWrap" aria-label="Zikir">
-      <h2><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="18" cy="9" r="2"/><circle cx="17" cy="16" r="2"/><circle cx="7" cy="16" r="2"/><circle cx="6" cy="9" r="2"/></svg>Zikir</h2>
-      <div class="zk-chips" id="zkChips" role="group" aria-label="Pilih zikir"></div>
-      <div class="zk-text">
-        <p class="zk-ar" id="zkAr" lang="ar" dir="rtl"></p>
-        <p class="zk-lat" id="zkLat"></p>
-        <p class="muted" id="zkArti"></p>
-        <p class="muted zk-seq" id="zkSeq"></p>
+      <h2><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="18" cy="9" r="2"/><circle cx="17" cy="16" r="2"/><circle cx="7" cy="16" r="2"/><circle cx="6" cy="9" r="2"/></svg>Zikir dan doa</h2>
+      <div class="seg" id="zkSeg" role="group" aria-label="Bagian zikir">
+        <button type="button" data-pane="tasbih" aria-pressed="true">Tasbih</button>
+        <button type="button" data-pane="zikir" aria-pressed="false">Zikir harian</button>
+        <button type="button" data-pane="doa" aria-pressed="false">Doa harian</button>
       </div>
-      <button type="button" class="zk-tap" id="zkTap" aria-label="Tambah hitungan">
-        <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="54" class="zk-track"/><circle cx="60" cy="60" r="54" class="zk-ring" id="zkRing" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 60 60)"/></svg>
-        <span class="zk-c"><b class="num" id="zkNum">0</b><small id="zkTgt"></small></span>
-      </button>
-      <div class="zk-row"><button type="button" class="zk-sec" id="zkReset">Ulangi hitungan</button><span class="muted">Hari ini: <b class="num" id="zkTotal">0</b> zikir</span><button type="button" class="zk-sec" id="zkResetDay">Reset hari ini</button></div>
-      <p class="muted src">Ketuk lingkaran untuk menghitung. Paket "Setelah sholat" berjalan otomatis: Subhanallah 33, Alhamdulillah 33, Allahu Akbar 34. Hitungan harian tersimpan di browser ini saja. Teks Arab diketik manual dan singkat, mohon dicocokkan dengan sumber yang kamu percaya.</p>
+
+      <div id="zk-tasbih">
+        <div class="zk-chips" id="zkChips" role="group" aria-label="Pilih zikir"></div>
+        <div class="zk-text">
+          <p class="zk-ar" id="zkAr" lang="ar" dir="rtl"></p>
+          <p class="zk-lat" id="zkLat"></p>
+          <p class="muted" id="zkArti"></p>
+          <p class="muted zk-seq" id="zkSeq"></p>
+        </div>
+        <button type="button" class="zk-tap" id="zkTap" aria-label="Tambah hitungan">
+          <svg viewBox="0 0 240 240" aria-hidden="true">
+            <defs>
+              <radialGradient id="zkWood" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#e9c79a"/><stop offset=".55" stop-color="#a8703a"/><stop offset="1" stop-color="#5c3714"/></radialGradient>
+              <radialGradient id="zkGold" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff2b8"/><stop offset=".5" stop-color="#e0b53c"/><stop offset="1" stop-color="#8a6512"/></radialGradient>
+            </defs>
+            <circle cx="120" cy="120" r="92" class="zk-string"/>
+            <g id="zkBeads"></g>
+            <polygon class="zk-mark" points="120,22 113,10 127,10"/>
+            <circle cx="120" cy="120" r="116" class="zk-track"/>
+            <circle cx="120" cy="120" r="116" class="zk-ring" id="zkRing" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 120 120)"/>
+          </svg>
+          <span class="zk-c"><b class="num" id="zkNum">0</b><small id="zkTgt"></small></span>
+        </button>
+        <div class="zk-row"><span class="muted">Hari ini: <b class="num" id="zkTotal">0</b> zikir</span><button type="button" class="zk-sec" id="zkReset">Ulangi hitungan</button><button type="button" class="zk-sec" id="zkSound" aria-pressed="true">Suara: nyala</button><button type="button" class="zk-sec" id="zkResetDay">Reset hari ini</button></div>
+        <p class="muted src">Setiap ketukan berbunyi "tik". Saat target tercapai (misalnya 33) bunyinya berganti jadi lonceng dua kali. Paket "Setelah sholat": Subhanallah 33, Alhamdulillah 33, Allahu Akbar 34. Hitungan harian tersimpan di browser ini saja.</p>
+      </div>
+
+      <div id="zk-zikir" hidden>
+        <p class="muted zi-intro">Ketuk judul untuk membuka bacaan, lalu tekan Dengarkan. Zikir pagi dan petang biasanya dibaca setelah subuh dan setelah ashar.</p>
+        <div id="zkZikir"></div>
+      </div>
+      <div id="zk-doa" hidden>
+        <p class="muted zi-intro">Ketuk judul untuk membuka doa, lalu tekan Dengarkan.</p>
+        <div id="zkDoa"></div>
+      </div>
+      <p class="muted src" id="zkNote">Ayat Al-Qur'an (teks, terjemahan, dan suara qari) diambil langsung dari sumbernya saat dibuka, jadi perlu internet. Doa dan zikir dari hadis saya ketik sendiri, mohon dicocokkan dengan sumber yang kamu percaya.</p>
     </section>
   </div>
 
@@ -126,7 +154,7 @@
 <!-- Urutan penting: fx.js (animasi langit), qibla.js (kompas), app.js (cuaca, sholat, udara, gempa) -->
 <script src="fx.js?v=4"></script>
 <script src="qibla.js?v=4"></script>
-<script src="dzikir.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="dzikir.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
